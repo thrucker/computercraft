@@ -110,16 +110,6 @@ if not overflowInv then
   return
 end
 
--- derived constants
-
-local x = 1 - 3 * (step / boilerBlocks) / maxHeat
-local y = 4 * step / boilerBlocks
-local a = boilerBlocks * heatInefficiency
-local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureInefficiency * maxHeat / 1000)
-local steamProduced = getSteamForTemp(targetTemp)
-
---
-
 function getSteamForTemp(temp)
   if temp < 100 then
     return 0
@@ -131,6 +121,16 @@ end
 function getTempForSteam(steam)
   return steam * maxHeat / (boilerBlocks * 10)
 end
+
+-- derived constants
+
+local x = 1 - 3 * (step / boilerBlocks) / maxHeat
+local y = 4 * step / boilerBlocks
+local a = boilerBlocks * heatInefficiency
+local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureInefficiency * maxHeat / 1000)
+local steamProduced = getSteamForTemp(targetTemp)
+
+--
 
 local minSteam = getSteamForTemp(100) -- steam only gets produced above boiling point
 local maxSteam = boilerBlocks * 10
@@ -233,31 +233,33 @@ function tick()
   updateTargetValue()
 
   local currentTemp = boiler.getTemperature()
-  local target = targetTemp
-  local burnTicksNeeded = getNumberOfTicks(currentTemp, target)
+  local burnTicksNeeded = getNumberOfTicks(currentTemp, targetTemp)
   local burnTimeNeeded = burnTicksNeeded / 20
   local burnTimeFuel = getBurnTime(currentTemp / maxHeat, burnTicksNeeded)
   local fuelNeeded = math.ceil(burnTimeFuel / burnTimePerFuel)
   local fuelInBoiler = getFuelInBoiler()
+
+  local displayTargetTemp = math.floor(targetTemp + 0.5)
+  local displaySteamProduced = math.floor(steamProduced + 0.5)
 
   term.clear()
   term.setCursorPos(1, 1)
   if mode == 0 then
     write("target temp: ")
     term.setTextColor(colors.green)
-    write(">"..targetTemp.."<\n")
+    write(">"..displayTargetTemp.."<\n")
     term.setTextColor(colors.white)
-    print("steam produced at "..targetTemp..": "..steamProduced)
+    print("steam produced at "..displayTargetTemp..": "..displaySteamProduced)
   elseif mode == 1 then
-    print("target temp: "..targetTemp)
-    write("steam produced at "..targetTemp..": ")
+    print("target temp: "..displayTargetTemp)
+    write("steam produced at "..displayTargetTemp..": ")
     term.setTextColor(colors.green)
-    write(">"..steamProduced.."<\n")
+    write(">"..displaySteamProduced.."<\n")
     term.setTextColor(colors.white)
   end
   print("current temp: "..currentTemp)
-  print("burn time needed to reach "..target..": "..burnTimeNeeded)
-  print("fuel needed to reach "..target..": "..fuelNeeded)
+  print("burn time needed to reach "..displayTargetTemp..": "..burnTimeNeeded)
+  print("fuel needed to reach "..displayTargetTemp..": "..fuelNeeded)
   print("fuel in boiler: "..fuelInBoiler)
   if mode == 0 then
     print("\nup/down: +/- 1 degree")
