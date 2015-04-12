@@ -1,0 +1,172 @@
+-- constants
+
+local burnTimePerFuel = 6.11 -- charcoal
+local boilerBlocks = 27
+local step = 0.05 -- heat factor per tick
+local maxHeat = 500
+local targetTemp = 250
+local maxFuelInBoiler = 4 * 64
+local heatInefficiency = 0.8
+local pressureInefficiency = 4
+local fuelPerCycle = 8
+local turtleDir = 'south' -- direction of this turtle from boiler POV
+
+-- derived constants
+
+local x = 1 - 3 * (step / boilerBlocks) / maxHeat
+local y = 4 * step / boilerBlocks
+local a = boilerBlocks * heatInefficiency
+local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureInefficiency * maxHeat / 1000)
+
+--
+
+local args = {...}
+
+local refreshTimerId
+
+local boiler = peripheral.wrap('left')
+
+function getNumberOfTicks(currentTemp, targetTemp)
+  if currentTemp >= targetTemp then
+    return 0
+  end
+
+  return math.ceil(math.log((targetTemp * (1 - x) - y) / (currentTemp * (1 - x) - y)) / math.log(x))
+end
+
+function getBurnTime(startLevel, ticks)
+end
+
+function getFuelInBoiler()
+  local stacks = boiler.getAllStacks()
+  local fuel = 0
+
+  for k, stack in pairs(stacks) do
+    fuel = fuel + stack.qty
+  end
+
+  if boiler.isBurning() then
+    fuel = fuel + 1
+  end
+
+  return fuel
+end
+
+function refuelBoiler(amount)
+  local currentStack = 1
+
+  while amount > 0  and currentStack <= 16 do
+    local count = turtle.getItemCount(currentStack)
+    local amountToPull = math.min(amount, count)
+
+    boiler.pullItem(turtleDir, currentStack, amountToPull)
+
+    amount = amount - amountToPull
+    currentStack = currentStack + 1
+  end
+end
+
+function tick()
+  local currentTemp = boiler.getTemperature()
+  local target = targetTemp
+  local burnTimeNeeded = getNumberOfTicks(currentTemp, target) / 20
+  local fuelNeeded = math.ceil(burnTimeNeeded / burnTimePerFuel)
+  local fuelInBoiler = getFuelInBoiler()
+
+  term.clear()
+  term.setCursorPos(1, 1)
+  write("target temp: ")
+  term.setTextColor(colors.green)
+  write(">"..targetTemp.."<\n")
+  term.setTextColor(colors.white)
+  print("current temp: "..currentTemp)
+  print("burn time needed to reach "..target..": "..burnTimeNeeded)
+  print("fuel needed to reach "..target..": "..fuelNeeded)
+  print("fuel in boiler: "..fuelInBoiler)
+  print("\nadjust target temp with up/down")
+  print("  shift: +/- 10")
+  print("\nquit with 'q'")
+  print("\nTODO: take out fuel if temp is too high")
+
+  if fuelInBoiler < fuelNeeded then
+    local fuelDelta = fuelNeeded - fuelInBoiler
+    local fuelSpaceInBoiler = maxFuelInBoiler - fuelInBoiler
+    local refuelAmount = math.min(fuelDelta, fuelSpaceInBoiler)
+
+    refuelBoiler(refuelAmount)
+  end
+
+  refreshTimerId = os.startTimer(0.5)
+end
+
+function monitorShortCuts()
+  local shiftTimer
+
+  while true do
+    local e, param1 = os.pullEvent()
+
+    if e == 'key' then
+      local keyCode = param1
+
+      if keyCode == 42 or keyCode == 54 then
+        os.queueEvent('shift', true)
+        shiftTimer = os.startTimer(0.4)
+      end
+    elseif e == 'timer' then
+      if param1 == shiftTimer then
+        os.queueEvent('shift', false)
+      end
+    end
+  end
+end
+
+function main()
+  local shift = false
+  local targetTempOverwrite = tonumber(args[1])
+
+  if targetTempOverwrite ~= nil then
+    targetTemp = targetTempOverwrite
+  end
+
+  tick()
+
+  while true do
+    local event, param1 = os.pullEvent()
+
+    if event == 'key' then
+      local keyCode = param1
+      local delta = 1
+      local change = false
+      if shift then
+        delta = 10
+      end
+
+      if keyCode == keys.up then -- up
+        targetTemp = math.min(maxHeat, targetTemp + delta)
+        change = true
+      elseif keyCode == keys.down then -- down
+        targetTemp = math.max(20, targetTemp - delta)
+        change = true
+      elseif keyCode == keys.q then
+        os.startTimer(0.2)
+        os.pullEvent()
+        return
+      end
+
+      if change then
+        os.cancelTimer(refreshTimerId)
+        tick()
+      end
+    elseif event == 'timer' then
+      if param1 == refreshTimerId then
+        tick()
+      end
+    elseif event == 'shift' then
+      shift = param1
+    end
+  end
+end
+
+pcall(function()
+  parallel.waitForAny(main, monitorShortCuts)
+end)
