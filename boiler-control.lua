@@ -11,6 +11,9 @@ local fuelPerCycle = 8
 local boilerSide = 'left'
 local sourceInvSide = 'right'
 local overflowInvSide = 'top'
+local mode = 0
+local minSteam = getSteamForTemp(100) -- steam only gets produced above boiling point
+local maxSteam = boilerBlocks * 10
 
 local oppositeDirection = {
   north = 'south',
@@ -115,8 +118,29 @@ local x = 1 - 3 * (step / boilerBlocks) / maxHeat
 local y = 4 * step / boilerBlocks
 local a = boilerBlocks * heatInefficiency
 local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureInefficiency * maxHeat / 1000)
+local steamProduced = getSteamForTemp(targetTemp)
 
 --
+
+function getSteamForTemp(temp)
+  if temp < 100 then
+    return 0
+  end
+
+  return temp / maxHeat * boilerBlocks * 10
+end
+
+function getTempForSteam(steam)
+  return steam * maxHeat / (boilerBlocks * 10)
+end
+
+function updateTargetValue()
+  if mode == 0 then
+    steamProduced = getSteamForTemp(targetTemp)
+  elseif mode == 1 then
+    targetTemp = getTempForSteam(steamProduced)
+  end
+end
 
 function getNumberOfTicks(currentTemp, targetTemp)
   if currentTemp >= targetTemp then
@@ -205,8 +229,9 @@ function stockupFuel()
 end
 
 function tick()
+  updateTargetValue()
+
   local currentTemp = boiler.getTemperature()
-  local steamProduced = targetTemp / maxHeat * boilerBlocks * 10
   local target = targetTemp
   local burnTicksNeeded = getNumberOfTicks(currentTemp, target)
   local burnTimeNeeded = burnTicksNeeded / 20
@@ -216,19 +241,33 @@ function tick()
 
   term.clear()
   term.setCursorPos(1, 1)
-  write("target temp: ")
-  term.setTextColor(colors.green)
-  write(">"..targetTemp.."<\n")
-  term.setTextColor(colors.white)
-  print("steam produced at "..targetTemp..": "..steamProduced)
+  if mode == 0 then
+    write("target temp: ")
+    term.setTextColor(colors.green)
+    write(">"..targetTemp.."<\n")
+    term.setTextColor(colors.white)
+    print("steam produced at "..targetTemp..": "..steamProduced)
+  elseif mode == 1 then
+    print("target temp: "..targetTemp)
+    write("steam produced at "..targetTemp..": ")
+    term.setTextColor(colors.green)
+    write(">"..steamProduced.."<\n")
+    term.setTextColor(colors.white)
+  end
   print("current temp: "..currentTemp)
   print("burn time needed to reach "..target..": "..burnTimeNeeded)
   print("fuel needed to reach "..target..": "..fuelNeeded)
   print("fuel in boiler: "..fuelInBoiler)
-  print("\nup/down: +/- 1 degree")
-  print("shift up/down: +/- 10 degrees")
+  if mode == 0 then
+    print("\nup/down: +/- 1 degree")
+    print("shift up/down: +/- 10 degrees")
+  elseif mode == 1 then
+    print("\nup/down: +/- 1 steam / tick")
+    print("shift up/down: +/- 10 steam / tick")
+  end
+  print("m: switch mode")
   print("q: quit")
-  print("\nTODO: take out fuel if temp is too high")
+  print("TODO: take out fuel if temp is too high")
 
   if fuelInBoiler < fuelNeeded then
     local fuelDelta = fuelNeeded - fuelInBoiler
@@ -281,10 +320,21 @@ function main()
       end
 
       if keyCode == keys.up then -- up
-        targetTemp = math.min(maxHeat, targetTemp + delta)
+        if mode == 0 then
+          targetTemp = math.min(maxHeat, targetTemp + delta)
+        elseif mode == 1 then
+          steamProduced = math.min(maxSteam, steamProduced + delta)
+        end
         change = true
       elseif keyCode == keys.down then -- down
-        targetTemp = math.max(20, targetTemp - delta)
+        if mode == 0 then
+          targetTemp = math.max(20, targetTemp - delta)
+        elseif mode == 1 then
+          steamProduced = math.max(minSteam, steamProduced - delta)
+        end
+        change = true
+      elseif keyCode == keys.m then
+        mode = 1 - mode
         change = true
       elseif keyCode == keys.q then
         os.startTimer(0.2)
