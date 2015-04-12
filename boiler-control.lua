@@ -223,9 +223,9 @@ function tick()
   print("burn time needed to reach "..target..": "..burnTimeNeeded)
   print("fuel needed to reach "..target..": "..fuelNeeded)
   print("fuel in boiler: "..fuelInBoiler)
-  print("\nup/down - +/- 1 degree")
+  print("\nup/down: +/- 1 degree")
   print("shift up/down: +/- 10 degrees")
-  print("q - quit")
+  print("q: quit")
   print("\nTODO: take out fuel if temp is too high")
 
   if fuelInBoiler < fuelNeeded then
