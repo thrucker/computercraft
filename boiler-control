@@ -1,6 +1,6 @@
 -- constants
 
-local burnTimePerFuel = 6.11 -- charcoal
+local burnTimePerFuel = 1600 -- charcoal
 local boilerBlocks = 27
 local step = 0.05 -- heat factor per tick
 local maxHeat = 500
@@ -35,6 +35,7 @@ function getNumberOfTicks(currentTemp, targetTemp)
 end
 
 function getBurnTime(startLevel, ticks)
+  return a * (startLevel + 1 / maxHeat * ((startLevel * maxHeat - y / (1 - x)) * ((1 - math.pow(x, ticks)) / (1 - math.pow(x, 16)) - 1) + y * (ticks / 16 - 1) / (1 - x))) + b * ticks / 16
 end
 
 function getFuelInBoiler()
@@ -69,8 +70,10 @@ end
 function tick()
   local currentTemp = boiler.getTemperature()
   local target = targetTemp
-  local burnTimeNeeded = getNumberOfTicks(currentTemp, target) / 20
-  local fuelNeeded = math.ceil(burnTimeNeeded / burnTimePerFuel)
+  local burnTicksNeeded = getNumberOfTicks(currentTemp, target)
+  local burnTimeNeeded = burnTicksNeeded / 20
+  local burnTimeFuel = getBurnTime(currentTemp / maxHeat, burnTicksNeeded)
+  local fuelNeeded = math.ceil(burnTimeFuel / burnTimePerFuel)
   local fuelInBoiler = getFuelInBoiler()
 
   term.clear()
