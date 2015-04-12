@@ -102,7 +102,7 @@ function tick()
   refreshTimerId = os.startTimer(0.5)
 end
 
-function monitorShortCuts()
+function monitorModifierKeys()
   local shiftTimer
 
   while true do
@@ -171,5 +171,5 @@ function main()
 end
 
 pcall(function()
-  parallel.waitForAny(main, monitorShortCuts)
+  parallel.waitForAny(main, monitorModifierKeys)
 end)
