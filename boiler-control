@@ -9,7 +9,10 @@ local maxFuelInBoiler = 4 * 64
 local heatInefficiency = 0.8
 local pressureInefficiency = 4
 local fuelPerCycle = 8
-local turtleDir = 'south' -- direction of this turtle from boiler POV
+local turtleDir = 'north' -- direction of this turtle from boiler POV
+local boilerSide = 'left'
+local sourceInvSide = 'right'
+local overflowInvSide = 'top'
 
 -- derived constants
 
@@ -24,7 +27,24 @@ local args = {...}
 
 local refreshTimerId
 
-local boiler = peripheral.wrap('left')
+local boiler = peripheral.wrap(boilerSide)
+local sourceInv = peripheral.wrap(sourceInvSide)
+local overflowInv = peripheral.wrap(overflowInvSide)
+
+if not boiler then
+  print("no boiler found at "..boilerSide.." side")
+  return
+end
+
+if not sourceInv then
+  print("no source inventory found at "..sourceInvSide.." side")
+  return
+end
+
+if not overflowInv then
+  print("no overflow inventory found at "..overflowInvSide.." side")
+  return
+end
 
 function getNumberOfTicks(currentTemp, targetTemp)
   if currentTemp >= targetTemp then
@@ -67,6 +87,51 @@ function refuelBoiler(amount)
   end
 end
 
+function cleanupInventory()
+  -- remove everything but charcoal
+  for slot = 1, 16 do
+    local itemDetail = turtle.getItemDetail(slot)
+
+    if itemDetail and (itemDetail.name ~= "minecraft:coal" or itemDetail.damage ~= 1) then
+      overflowInv.pullItem('down', slot)
+    end
+  end
+
+  -- remove excess charcoal
+  for slot = 13, 16 do
+    if turtle.getItemCount(slot) > 0 then
+      overflowInv.pullItem('down', slot)
+    end
+  end
+end
+
+function getFuelStock()
+  local count = 0
+
+  for slot = 1, 16 do
+    local itemDetail = turtle.getItemDetail(slot)
+
+    if itemDetail and itemDetail.name == 'minecraft:coal' and itemDetail.damage == 1 then
+      count = count + itemDetail.count
+    end
+  end
+
+  return count
+end
+
+function stockupFuel()
+  cleanupInventory()
+
+  local fuelCount = getFuelStock()
+  local fuelMissing = 12 * 64 - fuelCount
+
+  while fuelMissing > 0 do
+    sourceInv.condenseItems()
+    local fuelTransferred = sourceInv.pushItem('south', 1, fuelMissing)
+    fuelMissing = fuelMissing - fuelTransferred
+  end
+end
+
 function tick()
   local currentTemp = boiler.getTemperature()
   local target = targetTemp
@@ -97,6 +162,7 @@ function tick()
     local refuelAmount = math.min(fuelDelta, fuelSpaceInBoiler)
 
     refuelBoiler(refuelAmount)
+    stockupFuel()
   end
 
   refreshTimerId = os.startTimer(0.5)
@@ -131,6 +197,7 @@ function main()
     targetTemp = targetTempOverwrite
   end
 
+  stockupFuel()
   tick()
 
   while true do
