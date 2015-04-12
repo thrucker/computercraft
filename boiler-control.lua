@@ -206,6 +206,7 @@ end
 
 function tick()
   local currentTemp = boiler.getTemperature()
+  local steamProduced = targetTemp / maxHeat * boilerBlocks * 10
   local target = targetTemp
   local burnTicksNeeded = getNumberOfTicks(currentTemp, target)
   local burnTimeNeeded = burnTicksNeeded / 20
@@ -219,6 +220,7 @@ function tick()
   term.setTextColor(colors.green)
   write(">"..targetTemp.."<\n")
   term.setTextColor(colors.white)
+  print("steam produced at "..targetTemp..": "..steamProduced)
   print("current temp: "..currentTemp)
   print("burn time needed to reach "..target..": "..burnTimeNeeded)
   print("fuel needed to reach "..target..": "..fuelNeeded)
