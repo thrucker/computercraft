@@ -1,7 +1,6 @@
 -- constants
 
 local burnTimePerFuel = 1600 -- charcoal
-local boilerBlocks = 27
 local step = 0.05 -- heat factor per tick
 local maxHeat = 500
 local targetTemp = 250
@@ -57,21 +56,15 @@ local sideToDirection = {
   }
 }
 
--- derived constants
-
-local x = 1 - 3 * (step / boilerBlocks) / maxHeat
-local y = 4 * step / boilerBlocks
-local a = boilerBlocks * heatInefficiency
-local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureInefficiency * maxHeat / 1000)
-
 --
 
 local args = {...}
 
-if #args < 1 then
-  print("Usage: boiler-control <turtle direction> [<target temp>]")
+if #args < 2 then
+  print("Usage: boiler-control <turtle direction> <boiler blocks> [<target temp>]")
   print("  turtle direction = [north|east|south|west]")
-  print("  target temp = integer in degrees Celsius")
+  print("  boiler blocks = count of boiler blocks")
+  print("  target temp = target temperature in degrees Celsius")
   return
 end
 
@@ -80,8 +73,15 @@ local boilerToTurtleDirection = oppositeDirection[sideToDirection[turtleDir][boi
 local overflowToTurtleDirection = oppositeDirection[sideToDirection[turtleDir][overflowInvSide]]
 local sourceToTurtleDirection = oppositeDirection[sideToDirection[turtleDir][sourceInvSide]]
 
-if #args > 1 then
-  targetTempOverwrite = tonumber(args[2])
+local boilerBlocks = tonumber(args[2])
+
+if boilerBlocks == nil or boilerBlocks < 1 then
+  print("boiler blocks has to be a positive integer")
+  return
+end
+
+if #args > 2 then
+  targetTempOverwrite = tonumber(args[3])
 
   if targetTempOverwrite ~= nil then
     targetTemp = targetTempOverwrite
@@ -108,6 +108,15 @@ if not overflowInv then
   print("no overflow inventory found at "..overflowInvSide.." side")
   return
 end
+
+-- derived constants
+
+local x = 1 - 3 * (step / boilerBlocks) / maxHeat
+local y = 4 * step / boilerBlocks
+local a = boilerBlocks * heatInefficiency
+local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureInefficiency * maxHeat / 1000)
+
+--
 
 function getNumberOfTicks(currentTemp, targetTemp)
   if currentTemp >= targetTemp then
