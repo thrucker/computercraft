@@ -1,3 +1,15 @@
+function getSteamForTemp(temp)
+  if temp < 100 then
+    return 0
+  end
+
+  return temp / maxHeat * boilerBlocks * 10
+end
+
+function getTempForSteam(steam)
+  return steam * maxHeat / (boilerBlocks * 10)
+end
+
 -- constants
 
 local burnTimePerFuel = 1600 -- charcoal
@@ -121,18 +133,6 @@ local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureI
 local steamProduced = getSteamForTemp(targetTemp)
 
 --
-
-function getSteamForTemp(temp)
-  if temp < 100 then
-    return 0
-  end
-
-  return temp / maxHeat * boilerBlocks * 10
-end
-
-function getTempForSteam(steam)
-  return steam * maxHeat / (boilerBlocks * 10)
-end
 
 function updateTargetValue()
   if mode == 0 then
