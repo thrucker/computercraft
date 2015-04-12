@@ -9,10 +9,53 @@ local maxFuelInBoiler = 4 * 64
 local heatInefficiency = 0.8
 local pressureInefficiency = 4
 local fuelPerCycle = 8
-local turtleDir = 'north' -- direction of this turtle from boiler POV
 local boilerSide = 'left'
 local sourceInvSide = 'right'
 local overflowInvSide = 'top'
+
+local oppositeDirection = {
+  north = 'south',
+  south = 'north',
+  east = 'west',
+  west = 'east',
+  up = 'down',
+  down = 'up'
+}
+
+local sideToDirection = {
+  north = {
+    front = 'north',
+    right = 'east',
+    back = 'south',
+    left = 'west',
+    top = 'up',
+    bottom = 'down'
+  },
+  east = {
+    front = 'east',
+    right = 'south',
+    back = 'west',
+    left = 'north',
+    top = 'up',
+    bottom = 'down'
+  },
+  south = {
+    front = 'south',
+    right = 'west',
+    back = 'north',
+    left = 'east',
+    top = 'up',
+    bottom = 'down'
+  },
+  west = {
+    front = 'west',
+    right = 'north',
+    back = 'east',
+    left = 'south',
+    top = 'up',
+    bottom = 'down'
+  }
+}
 
 -- derived constants
 
@@ -24,6 +67,26 @@ local b = boilerBlocks * (fuelPerCycle * (1 - boilerBlocks * 0.0125) + pressureI
 --
 
 local args = {...}
+
+if #args < 1 then
+  print("Usage: boiler-control <turtle direction> [<target temp>]")
+  print("  turtle direction = [north|east|south|west]")
+  print("  target temp = integer in degrees Celsius")
+  return
+end
+
+local turtleDir = args[1]
+local boilerToTurtleDirection = oppositeDirection[sideToDirection[turtleDir][boilerSide]]
+local overflowToTurtleDirection = oppositeDirection[sideToDirection[turtleDir][overflowInvSide]]
+local sourceToTurtleDirection = oppositeDirection[sideToDirection[turtleDir][sourceInvSide]]
+
+if #args > 1 then
+  targetTempOverwrite = tonumber(args[2])
+
+  if targetTempOverwrite ~= nil then
+    targetTemp = targetTempOverwrite
+  end
+end
 
 local refreshTimerId
 
@@ -80,7 +143,7 @@ function refuelBoiler(amount)
     local count = turtle.getItemCount(currentStack)
     local amountToPull = math.min(amount, count)
 
-    boiler.pullItem(turtleDir, currentStack, amountToPull)
+    boiler.pullItem(boilerToTurtleDirection, currentStack, amountToPull)
 
     amount = amount - amountToPull
     currentStack = currentStack + 1
@@ -93,14 +156,14 @@ function cleanupInventory()
     local itemDetail = turtle.getItemDetail(slot)
 
     if itemDetail and (itemDetail.name ~= "minecraft:coal" or itemDetail.damage ~= 1) then
-      overflowInv.pullItem('down', slot)
+      overflowInv.pullItem(overflowToTurtleDirection, slot)
     end
   end
 
   -- remove excess charcoal
   for slot = 13, 16 do
     if turtle.getItemCount(slot) > 0 then
-      overflowInv.pullItem('down', slot)
+      overflowInv.pullItem(overflowToTurtleDirection, slot)
     end
   end
 end
@@ -127,7 +190,7 @@ function stockupFuel()
 
   while fuelMissing > 0 do
     sourceInv.condenseItems()
-    local fuelTransferred = sourceInv.pushItem('south', 1, fuelMissing)
+    local fuelTransferred = sourceInv.pushItem(sourceToTurtleDirection, 1, fuelMissing)
     fuelMissing = fuelMissing - fuelTransferred
   end
 end
@@ -191,11 +254,6 @@ end
 
 function main()
   local shift = false
-  local targetTempOverwrite = tonumber(args[1])
-
-  if targetTempOverwrite ~= nil then
-    targetTemp = targetTempOverwrite
-  end
 
   stockupFuel()
   tick()
